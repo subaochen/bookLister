@@ -10,8 +10,8 @@ import java.util.List;
 public class BookLister {
     BookFinder finder;
     
-    public BookLister(String books){
-        finder = new ColonDelimitedBookFinder(books);
+    public BookLister(BookFinder finder){
+        this.finder = finder;
     }
     
     public List<Book> booksWrittenBy(String author){
