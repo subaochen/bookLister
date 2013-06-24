@@ -8,15 +8,7 @@ import java.util.List;
  * @author subaochen
  */
 public class BookLister {
-    private BookFinder finder;
-
-    public BookFinder getFinder() {
-        return finder;
-    }
-
-    public void setFinder(BookFinder finder) {
-        this.finder = finder;
-    }
+    @Inject BookFinder finder;
     
     
     public List<Book> booksWrittenBy(String author){

@@ -13,16 +13,7 @@ import java.util.List;
  * @author subaochen
  */
 public class ColonDelimitedBookFinder implements BookFinder{
-    private String bookFile;
-
-    public String getBookFile() {
-        return bookFile;
-    }
-
-    public void setBookFile(String bookFile) {
-        this.bookFile = bookFile;
-    }
-    
+    private String bookFile = "books.txt";
     
 
     @Override
