@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans>
+    <bean id="BookFinder" class="ColonDelimitedBookFinder">
+        <property name="bookFile">
+            <value>books.txt</value>
+        </property>
+    </bean>    
+</beans>

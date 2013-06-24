@@ -1,12 +1,25 @@
-
+import java.io.InputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.NamedNodeMap;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
 
+/**
+ * 为简化问题起见，这里的Container仅支持setter DI
+ *
+ * @author subaochen
+ */
 public class MyContainer implements Container {
 
     private Map<Class, Object> compMap = new HashMap<Class, Object>(0);
@@ -19,25 +32,22 @@ public class MyContainer implements Container {
 
         Constructor[] constructors = compImplementation.getConstructors();
         try {
-            // 这里只支持一个构造方法
+            // 这里只支持一个默认的构造方法
             Constructor constructor = constructors[0];
-            Class[] params = null;
-            if (compKey == compImplementation) {
-                params = constructor.getParameterTypes();
-                // 这里只支持基于构造方法的DI
-                // TODO 递归构造？
-                Object[] args = new Object[params.length];
-                for (int i = 0; i < params.length; i++) {
-                    Class param = params[i];
-                    args[i] = getComponentForParam(param);
-                }
+            Object comp = constructor.newInstance();
 
-                if (!hasNullArgs(args)) {
-                    compMap.put(compKey, constructor.newInstance(args));
+            Method[] methods = compImplementation.getDeclaredMethods();
+            if (methods != null && methods.length != 0) {
+                for (Method method : methods) {
+                    if (method.getName().startsWith("set")) {
+                        Object result = verifyAndInvoke(comp, method);
+                        if (result != null) {
+                            comp = result;
+                        }
+                    }
                 }
-            } else {
-                compMap.put(compKey, constructor.newInstance(parameters));
             }
+            compMap.put(compKey, comp);
         } catch (InstantiationException ex) {
             Logger.getLogger(MyContainer.class.getName()).log(Level.SEVERE, null, ex);
         } catch (IllegalAccessException ex) {
@@ -47,6 +57,8 @@ public class MyContainer implements Container {
         } catch (InvocationTargetException ex) {
             Logger.getLogger(MyContainer.class.getName()).log(Level.SEVERE, null, ex);
         }
+
+
 
     }
 
@@ -80,6 +92,82 @@ public class MyContainer implements Container {
             }
 
         }
-        return param;
+        return null;
+    }
+
+    private Object verifyAndInvoke(Object comp, Method method) {
+        // 如果此方法是在配置文件中已经配置过了的属性，则采用属性文件beans.xml中的设置调用setter方法
+        String methodName = method.getName();
+        String propertyName = Character.toLowerCase(methodName.charAt(3)) + methodName.substring(4);
+        String propertyValue = parseBeansConfig(comp.getClass().getName(), propertyName);
+
+        Object arg = null;
+        if (propertyValue != null) {
+            arg = propertyValue;
+        } else {
+            Class[] params = method.getParameterTypes();
+            if (params == null || params.length != 1) {
+                return null;
+            }
+            arg = getComponentForParam(params[0]);
+        }
+
+        if (arg == null) {
+            return null;
+        }
+
+        try {
+            method.invoke(comp, arg);
+            return comp;
+        } catch (IllegalAccessException ex) {
+            Logger.getLogger(MyContainer.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (IllegalArgumentException ex) {
+            Logger.getLogger(MyContainer.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (InvocationTargetException ex) {
+            Logger.getLogger(MyContainer.class.getName()).log(Level.SEVERE, null, ex);
+        }
+
+        return null;
+    }
+
+    private String parseBeansConfig(String className, String propertyName) {
+        try {
+            InputStream is = getClass().getResourceAsStream("beans.xml");
+            DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+            Document doc = dBuilder.parse(is);
+            doc.getDocumentElement().normalize();
+
+            NodeList nList = doc.getElementsByTagName("bean");
+
+            for (int temp = 0; temp < nList.getLength(); temp++) {
+                Node nNode = nList.item(temp);
+
+                if (nNode.getNodeType() == Node.ELEMENT_NODE) {
+                    Element element = (Element) nNode;
+                    // 只需要检查指定的class属性
+                    String clazzName = element.getAttribute("class");
+                    if(clazzName.equals(className)) {
+                        NodeList inList = nNode.getChildNodes();
+                        for(int i = 0; i < inList.getLength(); i++){
+                            Node inNode = inList.item(i);
+                            if(inNode.getNodeType() == Node.ELEMENT_NODE){
+                                Element inElement = (Element)inNode;
+                                String pName = inElement.getAttribute("name");
+                                // 只检查指定的propertyName
+                                if(pName.equalsIgnoreCase(propertyName))
+                                    return inElement.getElementsByTagName("value").item(0).getTextContent();
+                            }
+
+                        }
+                    }                    
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        
+        return null;
     }
 }
+

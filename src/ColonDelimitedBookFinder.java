@@ -14,10 +14,16 @@ import java.util.List;
  */
 public class ColonDelimitedBookFinder implements BookFinder{
     private String bookFile;
-    public ColonDelimitedBookFinder(String bookFile){
-        this.bookFile = bookFile;
-        
+
+    public String getBookFile() {
+        return bookFile;
     }
+
+    public void setBookFile(String bookFile) {
+        this.bookFile = bookFile;
+    }
+    
+    
 
     @Override
     public List<Book> findAll() {
